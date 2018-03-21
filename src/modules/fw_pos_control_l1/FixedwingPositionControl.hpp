@@ -83,6 +83,7 @@
 #include <uORB/topics/vehicle_land_detected.h>
 #include <uORB/topics/vehicle_local_position.h>
 #include <uORB/topics/vehicle_status.h>
+#include <uORB/topics/wind_estimate.h>
 #include <uORB/uORB.h>
 #include <vtol_att_control/vtol_type.h>
 
@@ -180,6 +181,7 @@ private:
 
 	Subscription<airspeed_s> _sub_airspeed;
 	Subscription<sensor_bias_s> _sub_sensors;
+	Subscription<wind_estimate_s> _sub_wind_estimate;
 
 	perf_counter_t	_loop_perf;				///< loop performance counter */
 
@@ -232,8 +234,6 @@ private:
 	float _airspeed{0.0f};
 	float _eas2tas{1.0f};
 
-	float _groundspeed_undershoot{0.0f};			///< ground speed error to min. speed in m/s
-
 	Dcmf _R_nb;				///< current attitude
 	float _roll{0.0f};
 	float _pitch{0.0f};
@@ -245,6 +245,11 @@ private:
 
 	float _asp_after_transition{0.0f};
 	bool _was_in_transition{false};
+
+	/* wind estimates */
+	Vector2f _wind_speed_vector{0.0f, 0.0f};
+	bool _wind_estimate_valid{false};   ///< flag if a valid wind estimate exists
+	hrt_abstime _wind_estimate_last_received{0};			///< last time wind estimate was received. Used to detect timeouts.
 
 	// estimator reset counters
 	uint8_t _pos_reset_counter{0};				///< captures the number of times the estimator has reset the horizontal position
@@ -262,6 +267,8 @@ private:
 
 	struct {
 		float climbout_diff;
+
+		int32_t l1_airsp_comp_en;
 
 		float max_climb_rate;
 		float max_sink_rate;
@@ -305,6 +312,7 @@ private:
 		param_t l1_period;
 		param_t l1_damping;
 		param_t roll_limit;
+		param_t l1_airsp_comp_en;
 
 		param_t time_const;
 		param_t time_const_throt;
@@ -375,6 +383,7 @@ private:
 	void		vehicle_control_mode_poll();
 	void		vehicle_land_detected_poll();
 	void		vehicle_status_poll();
+	void    wind_estimate_poll();
 
 	// publish navigation capabilities
 	void		fw_pos_ctrl_status_publish();
@@ -427,8 +436,6 @@ private:
 
 	float		get_demanded_airspeed();
 	float		calculate_target_airspeed(float airspeed_demand);
-	void		calculate_gndspeed_undershoot(const Vector2f &curr_pos, const Vector2f &ground_speed,
-			const position_setpoint_s &pos_sp_prev, const position_setpoint_s &pos_sp_curr);
 
 	/**
 	 * Handle incoming vehicle commands

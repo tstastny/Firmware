@@ -74,6 +74,18 @@ PARAM_DEFINE_FLOAT(FW_L1_PERIOD, 20.0f);
 PARAM_DEFINE_FLOAT(FW_L1_DAMPING, 0.75f);
 
 /**
+ * Enable L1 airspeed compensation
+ *
+ * Enable airspeed compensation during over-wind scenarios for L1 control.
+ *
+ * @min 0
+ * @max 1
+ * @boolean
+ * @group FW L1 Control
+ */
+PARAM_DEFINE_INT32(FW_L1_AIRSP_COMP, 0);
+
+/**
  * Cruise throttle
  *
  * This is the throttle setting required to achieve the desired cruise speed. Most airframes have a value of 0.5-0.7.
