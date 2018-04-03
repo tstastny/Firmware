@@ -95,6 +95,12 @@ if [ -f $FRC ]
 then
 	sh $FRC
 	set MODE custom
+else
+	#Change by ASL to completely prevent startup (which would be unsafe) if the SD card is not found
+	echo " "
+	echo "ERROR No startup script on SD-card found. Verify SD card is mounted! Exiting boot sequence!"
+	echo " "
+	exit
 fi
 unset FRC
 

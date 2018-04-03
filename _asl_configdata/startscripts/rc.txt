@@ -1,0 +1,482 @@
+################################################ 
+# PX4 ASL startup script
+################################################
+
+################################################ 
+# CONFIGURATION-SPECIFIC PARAMETERS
+################################################
+# The parameters listed here are the only used you can/should change.
+# Everything else is configured via QGroundControl or parameters.
+
+# Enable (GPS_FAKE=On) or Disable (GPS_FAKE=Off) faking the GPS signal for inhouse testing.
+set GPS_FAKE Off
+
+################################################
+# LOAD PX4 DEFAULT PARAMETERS
+################################################
+
+set MIXER ERROR_none
+set MIXER_AUX pass
+set IMU_ORIENTATION 4
+set LOGGER_BUF 16
+set PWM_AUX_RATE 50
+set PWM_AUX_OUT 1234
+set GPS yes
+set VEHICLE_TYPE fw
+set USE_IO yes
+set OUTPUT_MODE io
+set PWM_OUT none
+set PWM_RATE p:PWM_RATE
+set PWM_DISARMED p:PWM_DISARMED
+set PWM_MIN p:PWM_MIN
+set PWM_MAX p:PWM_MAX
+set PWM_AUX_OUT none
+set PWM_AUX_RATE none
+set PWM_ACHDIS none
+set PWM_AUX_DISARMED p:PWM_AUX_DISARMED
+set PWM_AUX_MIN p:PWM_AUX_MIN
+set PWM_AUX_MAX p:PWM_AUX_MAX
+set FAILSAFE_AUX none
+set MAV_TYPE 1
+set FAILSAFE none
+set LOGGER_BUF 16
+set FMU_MODE gpio
+set AUX_MODE pwm
+
+# Load other fixed-wing default params as per PX4 standard
+sh /etc/init.d/rc.fw_defaults
+
+#####################################################
+# INITIAL BOOTUP
+#####################################################
+
+#
+# Start the ORB (first app to start)
+#
+uorb start
+
+# Load parameters from ROM/SD-card
+set PARAM_FILE /fs/microsd/params
+if mtd start
+then
+	set PARAM_FILE /fs/mtd_params
+fi
+
+param select $PARAM_FILE
+if param load
+then
+	echo "[param] Loaded: $PARAM_FILE"
+else
+	echo "[param] FAILED loading $PARAM_FILE"
+	if param reset
+	then
+	fi
+fi
+unset PARAM_FILE
+
+# Start tone driver
+tone_alarm start
+
+# Play startup tone. Do this after the parameters are loaded such that CBRK_BUZZER is obeyed.
+tune_control play -t 1
+
+################################################
+# ASL-SPECIFIC PARAMETER CONFIG AND STATUS OUTPUT
+################################################
+# Configure airplane based on parameters
+
+if param compare SYS_AUTOSTART 2200
+then
+	set MIXER ASL_EasyGlider
+	set IMU_ORIENTATION 12
+fi
+if param compare SYS_AUTOSTART 2201
+then
+	set MIXER ASL_Techpod
+	set IMU_ORIENTATION 8
+fi
+if param compare SYS_AUTOSTART 2202
+then
+	set MIXER ASL_SenseSoar2
+	set IMU_ORIENTATION 8
+fi
+if param compare SYS_AUTOSTART 9999
+then
+	set MIXER ASL_AtlantikSolar
+	set IMU_ORIENTATION 8
+fi
+set AIRPLANE $MIXER
+
+# HIL: In Hardware-In-the-Loop (parameter SYS_HITL=1), the GCS-telemetry link uses high baud rate (-> use a cable!)
+set HIL Off
+if param compare SYS_AUTOSTART 1000
+then
+	param set SYS_HITL 1	
+	set MIXER AERT	
+	set AIRPLANE HILplane
+	set HIL On
+else
+	param set SYS_HITL 0
+fi
+
+# Onboard Computer or OSD used? If parameter SYS_COMPANION>0, a 2nd mavlink instance is started. See PX4 docu.
+set OBC Off
+if param greater SYS_COMPANION 0
+then
+	set OBC On
+fi
+
+# Output the current settings
+echo " "
+echo "********************************************************************"
+echo "******* ASL custom start script - Configuration : ******************"
+echo "********************************************************************"
+echo "[setup] AIRPLANE: " $AIRPLANE
+echo "[setup] HIL:      " $HIL
+echo "[setup] OBC:      " $OBC
+echo "[setup] GPS_FAKE: " $GPS_FAKE
+echo "********************************************************************"
+echo " "
+unset HIL
+unset OBC
+
+# Check whether we configured successfully
+if [ $MIXER == ERROR_none ]
+then
+	echo " "	
+	echo "ERROR Unknown airplane name! Please configure airframe type and reboot!"
+	echo " "
+	tune_control play -m ${TUNE_ERR}
+fi
+
+#####################################################
+# CONTINUE INITIAL BOOTUP
+#####################################################
+
+#
+# Start system state indicator
+#
+rgbled start
+
+#
+# Check if PX4IO present and update firmware if needed
+#
+set IO_PRESENT no
+if [ -f /etc/extras/px4io-v2.bin ]
+then
+	set IO_FILE /etc/extras/px4io-v2.bin
+
+	if px4io checkcrc ${IO_FILE}
+	then
+		echo "[init] PX4IO CRC OK" >> $LOG_FILE
+		set IO_PRESENT yes
+	else
+		tone_alarm MLL32CP8MB
+
+		if px4io start
+		then
+			# try to safe px4 io so motor outputs dont go crazy
+			if px4io safety_on
+			then
+				# success! no-op
+			else
+				# px4io did not respond to the safety command
+				px4io stop
+			fi
+		fi
+
+		if px4io forceupdate 14662 ${IO_FILE}
+		then
+			usleep 10000
+			if px4io checkcrc ${IO_FILE}
+			then
+				echo "PX4IO CRC OK after updating" >> $LOG_FILE
+				tone_alarm MLL8CDE
+
+				set IO_PRESENT yes
+			else
+				echo "PX4IO update failed" >> $LOG_FILE
+				tone_alarm ${TUNE_ERR}
+			fi
+		else
+			echo "PX4IO update failed" >> $LOG_FILE
+			tune_control play -m ${TUNE_ERR}
+		fi
+	fi
+fi
+unset IO_FILE
+
+if [ $IO_PRESENT == no ]
+then
+	echo "PX4IO not found" >> $LOG_FILE
+	tune_control play -m ${TUNE_ERR}
+fi
+unset IO_PRESENT
+
+#
+# Start the datamanager (and do not abort boot if it fails)
+#
+if dataman start
+then
+fi
+
+#####################################################
+# SENSORS or HIL setup
+#####################################################
+
+#
+# Sensors System (start before Commander so Preflight checks are properly run)
+# commander Needs to be this early for in-air-restarts
+if param compare SYS_HITL 1
+then
+	set OUTPUT_MODE hil
+	sensors start -h
+	commander start --hil
+else
+	# GPS
+	if [ $GPS_FAKE == On ]
+	then
+		echo "[init] Faking GPS"
+		gps start -f
+	else
+		echo "[init] Starting GPS"
+		gps start
+	fi
+	unset GPS_FAKE
+	unset GPS
+	
+	#
+	# Start Pixhawk's default sensors (Note: This is all taken from /etc/init.d/rc.sensors)
+	#
+	
+	# Configure all I2C buses to 100 KHz as they are all external or slow
+	fmu i2c 1 100000
+	fmu i2c 2 100000
+	
+	# External SPI
+	ms5611 -S start
+
+	# Internal SPI (auto detect ms5611 or ms5607)
+	ms5611 -T 0 -s start
+	
+	adc start
+	
+	# IMU: Start the ADIS16448 first
+	if adis16448 -R ${IMU_ORIENTATION} start
+	then
+	else
+		# Indicate via error tune that we are not using the primary IMU
+		tone_alarm ${TUNE_ERR}
+		echo "WARN  Starting backup inertial sensors. Do NOT fly with this. Only for lab tests."
+		
+		if ver hwcmp PX4FMU_V2
+		then
+			# Don't use the external magnetometers for now
+			# hmc5883 -C -T -X start
+			# lis3mdl -X start
+		
+			# Internal I2C bus magnetometer
+			hmc5883 -C -T -I -R 4 start
+		
+			# Internal accel+gyro
+			mpu6000 start
+	
+			# Internal gyro
+			usleep 100000		
+			l3gd20 start
+	
+			# Internal accel+mag
+			usleep 100000
+			lsm303d start
+		else
+			echo "ERROR  *** CRITICAL *** Board not supported by this custom start script"
+			exit	
+		fi		
+	fi
+
+	# Airspeed
+	if sdp3x_airspeed start
+	then
+	else
+		if sdp3x_airspeed start -b 2
+		then
+		else
+			echo "ERROR Could not start the sdp3x driver"
+		fi
+	fi	
+		
+	#
+	# Start all ASL custom drivers
+	#
+
+	if [ $AIRPLANE == ASL_SenseSoar2 ]
+	then
+	fi
+	
+	#
+	# Optional drivers
+	#
+	# Lidar-Lite on I2C
+	if param compare SENS_EN_LL40LS 2
+	then
+		ll40ls start i2c
+		# clear pins 5 and 6
+		set FMU_MODE pwm4
+		set AUX_MODE pwm4
+	fi
+	
+	# Wait 50 ms for sensors (because we need to wait for the HRT and work queue callbacks to fire)
+	usleep 50000
+	sensors start
+	
+	# Start the Commander (needs to be this early for in-air-restarts)
+	commander start
+fi
+
+# A command handler that e.g. handles sensor calibration commands
+send_event start
+
+# A load-calculator that enables logging CPU and RAM usage		
+load_mon start
+
+# Camera triggering
+if param greater TRIG_MODE 0
+then
+	# We ONLY support trigger on pins 5 and 6 when simultanously using AUX for actuator output
+	if param compare TRIG_PINS 56
+	then
+		# clear pins 5 and 6
+		set FMU_MODE pwm4
+		set AUX_MODE pwm4
+	else
+		set FMU_MODE none
+		set AUX_MODE none
+	fi
+	camera_trigger start
+
+	param set CAM_FBACK_MODE 1
+	camera_feedback start
+fi		
+
+#####################################################
+# OUTPUT CONFIGURATION
+#####################################################
+#
+# PX4 IO
+#
+if px4io start
+then
+	sh /etc/init.d/rc.io
+else
+	echo "PX4IO start failed" >> $LOG_FILE
+	tune_control play -m ${TUNE_ERR}
+fi
+
+#
+# FMU
+#
+if fmu mode_${FMU_MODE} $FMU_ARGS
+then
+else
+	echo "FMU mode_${FMU_MODE} start failed" >> $LOG_FILE
+	tune_control play -m ${TUNE_ERR}
+fi
+
+if [ $OUTPUT_MODE == hil ]
+then
+	if pwm_out_sim start
+	then
+	else
+		tune_control play -m ${TUNE_ERR}
+	fi
+fi
+
+#####################################################
+# RC interface
+#####################################################
+
+# Load mixer and configure outputs
+sh /etc/init.d/rc.interface
+
+unset AIRPLANE
+unset MIXER
+unset MAV_TYPE
+unset OUTPUT_MODE
+unset MIXER_AUX
+unset PWM_OUT
+unset PWM_RATE
+unset PWM_DISARMED
+unset PWM_MIN
+unset PWM_MAX
+unset FAILSAFE
+unset PWM_AUX_OUT
+unset PWM_AUX_RATE
+unset PWM_AUX_DISARMED
+unset PWM_AUX_MIN
+unset PWM_AUX_MAX
+unset FAILSAFE_AUX
+unset USE_IO
+unset FMU_MODE
+
+#####################################################
+# MAVLINK
+#####################################################
+
+if [ -f /fs/microsd/etc/telem_config/telem.txt ]
+then
+	sh /fs/microsd/etc/telem_config/telem.txt
+else
+	echo "WARN  No telemetry config script on SD card found. Using defaults!"
+	mavlink start -d /dev/ttyS1 -b 57600 -r 1200 -f
+	mavlink start -d /dev/ttyS2 -b 57600 -m osd -r 1000
+	mavlink start -d /dev/ttyACM0 -m config -r 800000 -x
+fi
+
+#####################################################
+# LOGGING
+#####################################################
+if param compare SYS_LOGGER 0
+then
+	sdlog2 start -r 100 -a -b 9 -t
+else
+	set LOGGER_ARGS ""
+
+	if param compare SDLOG_MODE 1
+	then
+		set LOGGER_ARGS "-e"
+	fi
+
+	if param compare SDLOG_MODE 2
+	then
+		set LOGGER_ARGS "-f"
+	fi
+
+	logger start -b ${LOGGER_BUF} -t ${LOGGER_ARGS}
+
+	unset LOGGER_BUF
+	unset LOGGER_ARGS
+fi
+
+#####################################################
+# ESTIMATION AND CONTROL
+#####################################################
+
+# Start the attitude and position estimator
+ekf2 start
+
+# Start attitude controller
+fw_att_control start
+fw_pos_control_l1 start
+
+# Start Land Detector
+land_detector start fixedwing
+
+# Start the navigator
+navigator start
+
+#####################################################
+# CUSTOM ADDONS
+#####################################################
+# Note: There should not be much modification needed here. For example,
+# additional drivers (like the ll40ls LIDAR) are now started via a QGC parameter!
+

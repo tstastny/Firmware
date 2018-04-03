@@ -1,0 +1,53 @@
+ASL Techpod mixer for PX4IO
+=============================
+
+In MANUAL mode, the input values come directly from the RC transmitter (group 0)
+In any FMU mode, the input values come from aslctrl (and all values in group 0 == 0)
+
+Radio transmitter channel assignment (group 0): AIL, ELV, RDR, THR, FLAPS
+FMU channel assignment (group 1): AIL_R, ELV, RDR, THR_1, FLAPS, AIL_L, AUX1, AUX2
+
+Manual: https://pixhawk.org/dev/mixing
+
+=============================
+
+### Motor
+M: 1
+O:      10000  10000      0 -10000  10000
+S: 0 3      0  20000 -10000 -10000  10000
+
+
+### Right aileron (with differential)
+M: 1
+O:      10000  10000      0 -10000  10000
+S: 0 0 -7500  -10000      0 -10000  10000
+
+
+### Elevator
+M: 2
+O:       6000   6000      0 -10000  10000
+S: 0 1   6000   6000      0  -6000   6000
+
+
+### Rudder
+M: 2
+O:      10000  10000      0 -10000  10000
+S: 0 2  -6000  -6000      0  -6000   6000
+
+
+### Left aileron (with differential)
+M: 1
+O:      10000  10000      0 -10000  10000
+S: 0 0 -10000  -7500      0 -10000  10000
+
+
+### Right flap
+M: 1
+O:      10000  10000      0 -10000  10000
+S: 0 4  10000  10000      0  -4000   4000
+
+
+### Left flap
+M: 1
+O:      10000  10000      0 -10000  10000
+S: 0 4  10000  10000      0  -4000   4000
