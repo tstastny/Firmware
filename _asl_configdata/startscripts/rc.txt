@@ -1,8 +1,8 @@
-################################################ 
+################################################
 # PX4 ASL startup script
 ################################################
 
-################################################ 
+################################################
 # CONFIGURATION-SPECIFIC PARAMETERS
 ################################################
 # The parameters listed here are the only used you can/should change.
@@ -111,8 +111,8 @@ set AIRPLANE $MIXER
 set HIL Off
 if param compare SYS_AUTOSTART 1000
 then
-	param set SYS_HITL 1	
-	set MIXER AERT	
+	param set SYS_HITL 1
+	set MIXER AERT
 	set AIRPLANE HILplane
 	set HIL On
 else
@@ -143,7 +143,7 @@ unset OBC
 # Check whether we configured successfully
 if [ $MIXER == ERROR_none ]
 then
-	echo " "	
+	echo " "
 	echo "ERROR Unknown airplane name! Please configure airframe type and reboot!"
 	echo " "
 	tune_control play -m ${TUNE_ERR}
@@ -171,7 +171,7 @@ then
 		echo "[init] PX4IO CRC OK" >> $LOG_FILE
 		set IO_PRESENT yes
 	else
-		tone_alarm MLL32CP8MB
+		tune_control play -m MLL32CP8MB
 
 		if px4io start
 		then
@@ -191,12 +191,12 @@ then
 			if px4io checkcrc ${IO_FILE}
 			then
 				echo "PX4IO CRC OK after updating" >> $LOG_FILE
-				tone_alarm MLL8CDE
+				tune_control play -m MLL8CDE
 
 				set IO_PRESENT yes
 			else
 				echo "PX4IO update failed" >> $LOG_FILE
-				tone_alarm ${TUNE_ERR}
+				tune_control play -m ${TUNE_ERR}
 			fi
 		else
 			echo "PX4IO update failed" >> $LOG_FILE
@@ -244,54 +244,54 @@ else
 	fi
 	unset GPS_FAKE
 	unset GPS
-	
+
 	#
 	# Start Pixhawk's default sensors (Note: This is all taken from /etc/init.d/rc.sensors)
 	#
-	
+
 	# Configure all I2C buses to 100 KHz as they are all external or slow
 	fmu i2c 1 100000
 	fmu i2c 2 100000
-	
+
 	# External SPI
 	ms5611 -S start
 
 	# Internal SPI (auto detect ms5611 or ms5607)
 	ms5611 -T 0 -s start
-	
+
 	adc start
-	
+
 	# IMU: Start the ADIS16448 first
 	if adis16448 -R ${IMU_ORIENTATION} start
 	then
 	else
 		# Indicate via error tune that we are not using the primary IMU
-		tone_alarm ${TUNE_ERR}
+		tune_control play -m ${TUNE_ERR}
 		echo "WARN  Starting backup inertial sensors. Do NOT fly with this. Only for lab tests."
-		
+
 		if ver hwcmp PX4FMU_V2
 		then
 			# Don't use the external magnetometers for now
 			# hmc5883 -C -T -X start
 			# lis3mdl -X start
-		
+
 			# Internal I2C bus magnetometer
 			hmc5883 -C -T -I -R 4 start
-		
+
 			# Internal accel+gyro
 			mpu6000 start
-	
+
 			# Internal gyro
-			usleep 100000		
+			usleep 100000
 			l3gd20 start
-	
+
 			# Internal accel+mag
 			usleep 100000
 			lsm303d start
 		else
 			echo "ERROR  *** CRITICAL *** Board not supported by this custom start script"
-			exit	
-		fi		
+			exit
+		fi
 	fi
 
 	# Airspeed
@@ -303,16 +303,28 @@ else
 		else
 			echo "ERROR Could not start the sdp3x driver"
 		fi
-	fi	
-		
+	fi
+
 	#
 	# Start all ASL custom drivers
 	#
 
 	if [ $AIRPLANE == ASL_SenseSoar2 ]
 	then
+		# current battery pack has id 2
+		if bq78350 -U 2 start
+		then
+		else
+			tune_control play -m ${TUNE_ERR}
+		fi
+
+		if pwr_brd start
+		then
+		else
+			tune_control play -m ${TUNE_ERR}
+		fi
 	fi
-	
+
 	#
 	# Optional drivers
 	#
@@ -324,11 +336,11 @@ else
 		set FMU_MODE pwm4
 		set AUX_MODE pwm4
 	fi
-	
+
 	# Wait 50 ms for sensors (because we need to wait for the HRT and work queue callbacks to fire)
 	usleep 50000
 	sensors start
-	
+
 	# Start the Commander (needs to be this early for in-air-restarts)
 	commander start
 fi
@@ -336,7 +348,7 @@ fi
 # A command handler that e.g. handles sensor calibration commands
 send_event start
 
-# A load-calculator that enables logging CPU and RAM usage		
+# A load-calculator that enables logging CPU and RAM usage
 load_mon start
 
 # Camera triggering
@@ -356,7 +368,7 @@ then
 
 	param set CAM_FBACK_MODE 1
 	camera_feedback start
-fi		
+fi
 
 #####################################################
 # OUTPUT CONFIGURATION
@@ -394,6 +406,8 @@ fi
 #####################################################
 # RC interface
 #####################################################
+
+param set MAV_TYPE ${MAV_TYPE}
 
 # Load mixer and configure outputs
 sh /etc/init.d/rc.interface

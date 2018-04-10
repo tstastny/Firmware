@@ -9,6 +9,12 @@ echo "INFO  Using /fs/microsd/etc/telem_config/telem.txt for MAVLINK configurati
 if param compare SYS_HITL 0
 then
 	mavlink start -d /dev/ttyS1 -r 2400 -b 57600 -f
+
+	# enable ASL specific MAVLink streams
+	mavlink stream -d /dev/ttyS1 -s SENS_BATMON_0 -r 0.5
+	mavlink stream -d /dev/ttyS1 -s SENS_BATMON_1 -r 0.5
+	mavlink stream -d /dev/ttyS1 -s SENS_BATMON_2 -r 0.5
+	mavlink stream -d /dev/ttyS1 -s SENS_POWERBOARD -r 0.5
 else
 	mavlink start -d /dev/ttyS1 -r 120000 -b 921600 -f
 fi
@@ -41,3 +47,9 @@ unset MAVLINK_COMPANION_DEVICE
 # ACM0: USB port telemetry. Baudrate does not matter.
 ################################################################################
 mavlink start -d /dev/ttyACM0 -m config -r 800000 -x
+
+# enable ASL specific MAVLink streams
+mavlink stream -d /dev/ttyS1 -s SENS_BATMON_0 -r 0.5
+mavlink stream -d /dev/ttyS1 -s SENS_BATMON_1 -r 0.5
+mavlink stream -d /dev/ttyS1 -s SENS_BATMON_2 -r 0.5
+mavlink stream -d /dev/ttyS1 -s SENS_POWERBOARD -r 0.5

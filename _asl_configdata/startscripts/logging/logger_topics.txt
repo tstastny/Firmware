@@ -1,0 +1,44 @@
+actuator_controls_0, 50
+actuator_controls_1, 50
+actuator_outputs, 50
+airspeed, 50
+battery_status, 500
+commander_state, 500
+cpuload, 500
+differential_pressure, 100
+distance_sensor, 100
+ekf2_innovations, 100
+esc_status, 200
+estimator_status, 200
+home_position
+input_rc, 50
+landing_target_pose
+mission
+mission_result
+manual_control_setpoint, 50
+rc_channels, 200
+safety
+sensor_combined, 200
+sensor_baro, 20
+sensor_accel, 20
+sensor_gyro, 20
+sensor_mag, 20
+sensor_preflight, 200
+system_power, 500
+tecs_status, 500
+telemetry_status, 500
+vehicle_attitude, 50
+vehicle_attitude_setpoint, 50
+vehicle_command
+vehicle_control_mode, 500
+vehicle_global_position, 100
+vehicle_gps_position, 100
+vehicle_land_detected, 100
+vehicle_local_position, 100
+vehicle_local_position_setpoint, 50
+vehicle_rates_setpoint, 50
+vehicle_status, 100
+vehicle_status_flags, 100
+wind_estimate, 100
+sensor_bat_mon, 500
+sensor_pwr_brd, 500
