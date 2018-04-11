@@ -491,6 +491,15 @@ navigator start
 #####################################################
 # CUSTOM ADDONS
 #####################################################
+# Start any custom addons
+set FEXTRAS /fs/microsd/etc/extras.txt
+if [ -f $FEXTRAS ]
+then
+	echo "Addons script: ${FEXTRAS}"
+	sh $FEXTRAS
+fi
+unset FEXTRAS
+
 # Note: There should not be much modification needed here. For example,
 # additional drivers (like the ll40ls LIDAR) are now started via a QGC parameter!
 
