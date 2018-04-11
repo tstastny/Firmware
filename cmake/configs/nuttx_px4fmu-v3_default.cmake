@@ -48,8 +48,6 @@ set(config_module_list
 	drivers/stm32/tone_alarm
 	drivers/tap_esc
 	drivers/vmount
-	drivers/bat_mon
-	drivers/bat_mon/bq78350
 	modules/sensors
 
 	#
