@@ -1,13 +1,7 @@
 ASL Techpod mixer for PX4IO
 =============================
 
-In MANUAL mode, the input values come directly from the RC transmitter (group 0)
-In any FMU mode, the input values come from aslctrl (and all values in group 0 == 0)
-
-Radio transmitter channel assignment (group 0): AIL, ELV, RDR, THR, FLAPS
-FMU channel assignment (group 1): AIL_R, ELV, RDR, THR_1, FLAPS, AIL_L, AUX1, AUX2
-
-Manual: https://pixhawk.org/dev/mixing
+Documentation: https://dev.px4.io/en/concept/mixing.html
 
 =============================
 
