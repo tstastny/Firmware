@@ -253,11 +253,13 @@ else
 	fmu i2c 1 100000
 	fmu i2c 2 100000
 
-	# External SPI
-	ms5611 -S start
-
-	# Internal SPI (auto detect ms5611 or ms5607)
-	ms5611 -T 0 -s start
+	# Attempt external I2C baro first (not active at the moment due to expected i2c issues)
+	#if ms5611 -X start
+	#then
+	#fi
+		# Internal SPI (auto detect ms5611 or ms5607)
+		ms5611 -T 0 -s start
+	#end
 
 	adc start
 
