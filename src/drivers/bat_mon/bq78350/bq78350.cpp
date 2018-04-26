@@ -55,6 +55,7 @@
 
 #define MAXIMALNUMBEROFCELLS 15
 #define DEFAULTNUMBEROFCELLS 6
+#define MAXIMALSBSBLOCKSIZE 4  /* limit the SBS block transmission to 4 bytes (consider increasing later to 32) */
 
 uint8_t number_of_cells = DEFAULTNUMBEROFCELLS;
 
@@ -97,7 +98,7 @@ extern "C" __EXPORT int bq78350_main(int argc, char *argv[]);
 
 /* collect Battery monitor measurements: */
 int
-Bq78350::measure()
+Bq78350::collect()
 {
 	/* read the most recent measurement */
 	perf_begin(_sample_perf);
@@ -188,7 +189,7 @@ Bq78350::measure()
 }
 
 int
-Bq78350::collect()
+Bq78350::measure()
 {
 	return OK;
 }
@@ -196,24 +197,19 @@ Bq78350::collect()
 void
 Bq78350::cycle()
 {
-	/* collection phase? */
-	if (_measurement_phase) {
-		/* perform voltage measurement */
-		if (OK != measure()) {
-			start();
-			return;
-		}
+	int ret = PX4_ERROR;
 
-		/* next phase is measurement */
-		_measurement_phase = true;
+	// collect data
+	ret = collect();
 
-		/* schedule a fresh cycle call when the measurement is done */
-		work_queue(HPWORK,
-			   &_work,
-			   (worker_t)&Bq78350::cycle_trampoline,
-			   this,
-			   _measure_ticks);
+	if (PX4_OK != ret) {
+		DEVICE_DEBUG("collect error");
+		//start();
+		//return;
 	}
+
+	// schedule a fresh cycle call when the measurement is done
+	work_queue(HPWORK, &_work, (worker_t)&Bat_mon::cycle_trampoline, this, USEC2TICK(CONVERSION_INTERVAL));
 }
 
 /* Single Bytes of SBS command Reading */
@@ -258,7 +254,7 @@ Bq78350::getTwoBytesSBSReading(uint8_t sbscmd, uint16_t *sbsreading)
 	return OK;
 }
 
-/* Four Bytes of SBS command reading */
+/* N Bytes of SBS command reading */
 int
 Bq78350::getBlockSBSReading(uint8_t sbscmd, uint32_t *sbsreading)
 {
@@ -276,6 +272,11 @@ Bq78350::getBlockSBSReading(uint8_t sbscmd, uint32_t *sbsreading)
 		uint8_t	b[4];
 		uint32_t w;
 	} cvt;
+
+	/* limit SBS block size transmission */
+	if (size[0] > MAXIMALSBSBLOCKSIZE) {
+		return -EIO;
+	}
 
 	/* fetch the raw value */
 	if (OK != transfer(&sbscmd, 1, &data[0], size[0] + 1)) {

@@ -42,9 +42,6 @@
 
 #include <drivers/bat_mon/bat_mon.h>
 
-#define BATMON_MEAS_RATE 100
-#define CONVERSION_INTERVAL	(1000000 / BATMON_MEAS_RATE)	/* microseconds */
-
 Bat_mon::Bat_mon(int bus, int address, unsigned conversion_interval, const char *path, Instance instance) :
 	I2C("Bat_mon", path, bus, address, 100000),
 	_reports(nullptr),
@@ -333,7 +330,6 @@ Bat_mon::start()
 {
 	/* reset the report ring and state machine */
 	_collect_phase = false;
-	_measurement_phase = true;
 	_reports->flush();
 
 	/* schedule a cycle to start things */
