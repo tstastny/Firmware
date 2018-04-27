@@ -68,7 +68,7 @@ void publish_subsystem_info_init(vehicle_status_s *commander_vehicle_status_ptr,
  * status variable or into an internal variable that is later copied to commander's vehicle status variable*/
 void publish_subsystem_info(uint64_t subsystem_type, bool present, bool enabled, bool ok)
 {
-	PX4_INFO("publish_subsystem_info (ext:%u): Type %llu pres=%u enabl=%u ok=%u", status != &internal_status, subsystem_type, present, enabled, ok);
+	PX4_DEBUG("publish_subsystem_info (ext:%u): Type %llu pres=%u enabl=%u ok=%u", status != &internal_status, subsystem_type, present, enabled, ok);
 
 	if (present) status->onboard_control_sensors_present |= (uint32_t)subsystem_type;
 	else status->onboard_control_sensors_present &= ~(uint32_t)subsystem_type;
@@ -111,7 +111,7 @@ void publish_subsystem_info_print(void)
 {
 	uint64_t type = 1;
 	for (int i=1;i<31;i++) {
-		PX4_INFO("subsystem_info: Type %llu pres=%u enabl=%u ok=%u", type, (status->onboard_control_sensors_present & (uint32_t)type)>0, (status->onboard_control_sensors_enabled & (uint32_t)type)>0, (status->onboard_control_sensors_health & (uint32_t)type)>0);
+		PX4_DEBUG("subsystem_info: Type %llu pres=%u enabl=%u ok=%u", type, (status->onboard_control_sensors_present & (uint32_t)type)>0, (status->onboard_control_sensors_enabled & (uint32_t)type)>0, (status->onboard_control_sensors_health & (uint32_t)type)>0);
 		type=type*2;
 	}
 }
