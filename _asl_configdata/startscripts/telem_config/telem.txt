@@ -1,0 +1,55 @@
+# ASL telemetry configuration file. Starts all MAVLINK instances and configures the respective streams. 
+# See PX4 docu for the serial port assignment.
+
+echo "INFO  Using /fs/microsd/etc/telem_config/telem.txt for MAVLINK configuration"
+
+################################################################################
+# TELEM1: Main radio (in flight) or connection to ground station (in HIL mode).
+################################################################################
+if param compare SYS_HITL 0
+then
+	mavlink start -d /dev/ttyS1 -r 2400 -b 57600 -f
+
+	# enable ASL specific MAVLink streams
+	mavlink stream -d /dev/ttyS1 -s SENS_BATMON_0 -r 0.5
+	mavlink stream -d /dev/ttyS1 -s SENS_BATMON_1 -r 0.5
+	mavlink stream -d /dev/ttyS1 -s SENS_BATMON_2 -r 0.5
+	mavlink stream -d /dev/ttyS1 -s SENS_POWERBOARD -r 0.5
+else
+	mavlink start -d /dev/ttyS1 -r 120000 -b 921600 -f
+fi
+
+################################################################################
+# TELEM2: OSD or companion computer
+################################################################################
+# See https://dev.px4.io/en/companion_computer/pixhawk_companion.html
+
+set MAVLINK_COMPANION_DEVICE /dev/ttyS2
+if param compare SYS_COMPANION 921600
+then
+	mavlink start -d ${MAVLINK_COMPANION_DEVICE} -b 921600 -m onboard -r 80000 -x -f
+fi
+if param compare SYS_COMPANION 57600
+then
+	mavlink start -d ${MAVLINK_COMPANION_DEVICE} -b 57600 -m onboard -r 5000 -x -f
+fi
+if param compare SYS_COMPANION 157600
+then
+	mavlink start -d ${MAVLINK_COMPANION_DEVICE} -b 57600 -m osd -r 1000
+fi
+if param compare SYS_COMPANION 257600
+then
+	mavlink start -d ${MAVLINK_COMPANION_DEVICE} -b 57600 -m magic -r 5000 -x -f
+fi
+unset MAVLINK_COMPANION_DEVICE
+
+################################################################################
+# ACM0: USB port telemetry. Baudrate does not matter.
+################################################################################
+mavlink start -d /dev/ttyACM0 -m config -r 800000 -x
+
+# enable ASL specific MAVLink streams
+mavlink stream -d /dev/ttyS1 -s SENS_BATMON_0 -r 0.5
+mavlink stream -d /dev/ttyS1 -s SENS_BATMON_1 -r 0.5
+mavlink stream -d /dev/ttyS1 -s SENS_BATMON_2 -r 0.5
+mavlink stream -d /dev/ttyS1 -s SENS_POWERBOARD -r 0.5

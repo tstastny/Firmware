@@ -104,9 +104,12 @@
 #include <uORB/topics/collision_report.h>
 #include <uORB/topics/sensor_accel.h>
 #include <uORB/topics/sensor_gyro.h>
+#include <uORB/topics/sensor_bat_mon.h>
 #include <uORB/topics/vehicle_air_data.h>
 #include <uORB/topics/vehicle_magnetometer.h>
 #include <uORB/uORB.h>
+
+#define KELVINTOCELSIUS -272.15f
 
 static uint16_t cm_uint16_from_m_float(float m);
 
@@ -4063,6 +4066,97 @@ protected:
 	}
 };
 
+template <int N>
+class MavlinkStreamSensBatmonData : public MavlinkStream
+{
+public:
+	const char *get_name() const
+	{
+		return MavlinkStreamSensBatmonData::get_name_static();
+	}
+
+	static const char *get_name_static()
+	{
+		switch (N) {
+		case 0:
+			return "SENS_BATMON_0";
+
+		case 1:
+			return "SENS_BATMON_1";
+
+		case 2:
+			return "SENS_BATMON_2";
+		}
+	}
+
+	static uint16_t get_id_static()
+	{
+		return MAVLINK_MSG_ID_SENS_BATMON;
+	}
+
+	uint16_t get_id()
+	{
+		return get_id_static();
+	}
+
+	static MavlinkStream *new_instance(Mavlink *mavlink)
+	{
+		return new MavlinkStreamSensBatmonData(mavlink);
+	}
+
+	unsigned get_size()
+	{
+		return MAVLINK_MSG_ID_SENS_BATMON_LEN + MAVLINK_NUM_NON_PAYLOAD_BYTES;
+	}
+
+private:
+	MavlinkOrbSubscription *_batmon_data_sub;
+	uint64_t _batmon_data_time;
+
+	/* do not allow top copying this class */
+	MavlinkStreamSensBatmonData(MavlinkStreamSensBatmonData &);
+	MavlinkStreamSensBatmonData &operator = (const MavlinkStreamSensBatmonData &);
+
+protected:
+	explicit MavlinkStreamSensBatmonData(Mavlink *mavlink) : MavlinkStream(mavlink),
+		_batmon_data_sub(_mavlink->add_orb_subscription(ORB_ID(sensor_bat_mon))),
+		_batmon_data_time(0)
+	{
+		_batmon_data_sub = _mavlink->add_orb_subscription(ORB_ID(sensor_bat_mon), N);
+	}
+
+	bool send(const hrt_abstime t)
+	{
+		struct sensor_bat_mon_s bat_mon_data;
+
+		if (_batmon_data_sub->update(&_batmon_data_time, &bat_mon_data)) {
+			mavlink_sens_batmon_t msg = {};
+
+			msg.batmon_timestamp = bat_mon_data.timestamp;
+			msg.temperature = ((float) bat_mon_data.temperature) / 10.0f + KELVINTOCELSIUS;
+			msg.voltage = bat_mon_data.voltage;
+			msg.current = bat_mon_data.current;
+			msg.SoC = bat_mon_data.stateofcharge;
+			msg.batterystatus = bat_mon_data.batterystatus;
+			msg.serialnumber = bat_mon_data.serialnumber;
+			msg.safetystatus = bat_mon_data.safetystatus;
+			msg.operationstatus = bat_mon_data.operationstatus;
+			msg.cellvoltage1 = bat_mon_data.cellvoltage[0];
+			msg.cellvoltage2 = bat_mon_data.cellvoltage[1];
+			msg.cellvoltage3 = bat_mon_data.cellvoltage[2];
+			msg.cellvoltage4 = bat_mon_data.cellvoltage[3];
+			msg.cellvoltage5 = bat_mon_data.cellvoltage[4];
+			msg.cellvoltage6 = bat_mon_data.cellvoltage[5];
+
+			mavlink_msg_sens_batmon_send_struct(_mavlink->get_channel(), &msg);
+
+			return true;
+		}
+
+		return false;
+	}
+};
+
 static const StreamListItem streams_list[] = {
 	StreamListItem(&MavlinkStreamHeartbeat::new_instance, &MavlinkStreamHeartbeat::get_name_static, &MavlinkStreamHeartbeat::get_id_static),
 	StreamListItem(&MavlinkStreamStatustext::new_instance, &MavlinkStreamStatustext::get_name_static, &MavlinkStreamStatustext::get_id_static),
@@ -4113,7 +4207,10 @@ static const StreamListItem streams_list[] = {
 	StreamListItem(&MavlinkStreamWind::new_instance, &MavlinkStreamWind::get_name_static, &MavlinkStreamWind::get_id_static),
 	StreamListItem(&MavlinkStreamMountOrientation::new_instance, &MavlinkStreamMountOrientation::get_name_static, &MavlinkStreamMountOrientation::get_id_static),
 	StreamListItem(&MavlinkStreamHighLatency2::new_instance, &MavlinkStreamHighLatency2::get_name_static, &MavlinkStreamHighLatency2::get_id_static),
-	StreamListItem(&MavlinkStreamGroundTruth::new_instance, &MavlinkStreamGroundTruth::get_name_static, &MavlinkStreamGroundTruth::get_id_static)
+	StreamListItem(&MavlinkStreamGroundTruth::new_instance, &MavlinkStreamGroundTruth::get_name_static, &MavlinkStreamGroundTruth::get_id_static),
+	StreamListItem(&MavlinkStreamSensBatmonData<0>::new_instance, &MavlinkStreamSensBatmonData<0>::get_name_static, &MavlinkStreamSensBatmonData<0>::get_id_static),
+	StreamListItem(&MavlinkStreamSensBatmonData<1>::new_instance, &MavlinkStreamSensBatmonData<1>::get_name_static, &MavlinkStreamSensBatmonData<1>::get_id_static),
+	StreamListItem(&MavlinkStreamSensBatmonData<2>::new_instance, &MavlinkStreamSensBatmonData<2>::get_name_static, &MavlinkStreamSensBatmonData<2>::get_id_static)
 };
 
 const char *get_stream_name(const uint16_t msg_id)
