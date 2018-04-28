@@ -95,6 +95,7 @@ set(msg_files
 	sensor_correction.msg
 	sensor_gyro.msg
 	sensor_mag.msg
+	sensor_pwr_brd.msg
 	sensor_preflight.msg
 	sensor_selection.msg
 	servorail_status.msg

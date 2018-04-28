@@ -105,6 +105,7 @@
 #include <uORB/topics/sensor_accel.h>
 #include <uORB/topics/sensor_gyro.h>
 #include <uORB/topics/sensor_bat_mon.h>
+#include <uORB/topics/sensor_pwr_brd.h>
 #include <uORB/topics/vehicle_air_data.h>
 #include <uORB/topics/vehicle_magnetometer.h>
 #include <uORB/uORB.h>
@@ -4157,6 +4158,88 @@ protected:
 	}
 };
 
+class MavlinkStreamPowerboardData : public MavlinkStream
+{
+public:
+	const char *get_name() const
+	{
+		return MavlinkStreamPowerboardData::get_name_static();
+	}
+
+	static const char *get_name_static()
+	{
+		return "SENS_POWERBOARD";
+	}
+
+	static uint16_t get_id_static()
+	{
+		return MAVLINK_MSG_ID_SENS_POWER_BOARD;
+	}
+
+	uint16_t get_id()
+	{
+		return get_id_static();
+	}
+
+	static MavlinkStream *new_instance(Mavlink *mavlink)
+	{
+		return new MavlinkStreamPowerboardData(mavlink);
+	}
+
+	unsigned get_size()
+	{
+		return (_power_board_data_time > 0) ? MAVLINK_MSG_ID_SENS_POWER_BOARD_LEN + MAVLINK_NUM_NON_PAYLOAD_BYTES : 0;
+	}
+
+private:
+	MavlinkOrbSubscription *_power_board_data_sub;
+	uint64_t _power_board_data_time;
+
+	/* do not allow top copying this class */
+	MavlinkStreamPowerboardData(MavlinkStreamPowerboardData &);
+	MavlinkStreamPowerboardData &operator = (const MavlinkStreamPowerboardData &);
+
+protected:
+	explicit MavlinkStreamPowerboardData(Mavlink *mavlink) : MavlinkStream(mavlink),
+		_power_board_data_sub(_mavlink->add_orb_subscription(ORB_ID(sensor_pwr_brd))),
+		_power_board_data_time(0)
+	{}
+
+	bool send(const hrt_abstime t)
+	{
+		struct sensor_pwr_brd_s power_board_data;
+
+		if (_power_board_data_sub->update(&_power_board_data_time, &power_board_data)) {
+
+			mavlink_sens_power_board_t msg = {};
+
+			msg.timestamp = power_board_data.timestamp;
+			msg.pwr_brd_status = power_board_data.pwr_brd_status;
+			msg.pwr_brd_led_status = power_board_data.pwr_brd_led_status;
+			//msg.pwr_brd_blink_reg = power_board_data.pwr_brd_blink_reg;			/* Optional - removed */
+			//msg.pwr_brd_led_1_pwr = power_board_data.pwr_brd_led_1_pwr;			/* Optional - removed */
+			//msg.pwr_brd_led_2_pwr = power_board_data.pwr_brd_led_2_pwr;			/* Optional - removed */
+			//msg.pwr_brd_led_3_pwr = power_board_data.pwr_brd_led_3_pwr;			/* Optional - removed */
+			//msg.pwr_brd_led_4_pwr = power_board_data.pwr_brd_led_4_pwr;			/* Optional - removed */
+			msg.pwr_brd_system_volt = power_board_data.pwr_brd_system_volt;
+			msg.pwr_brd_servo_volt = power_board_data.pwr_brd_servo_volt;
+			msg.pwr_brd_mot_l_amp = power_board_data.pwr_brd_mot_l_amp;
+			msg.pwr_brd_mot_r_amp = power_board_data.pwr_brd_mot_r_amp;
+			msg.pwr_brd_digital_amp = power_board_data.pwr_brd_digital_amp;
+			msg.pwr_brd_analog_amp = power_board_data.pwr_brd_analog_amp;
+			msg.pwr_brd_ext_amp = power_board_data.pwr_brd_ext_amp;
+			msg.pwr_brd_digital_volt = power_board_data.pwr_brd_digital_volt;
+			msg.pwr_brd_aux_amp = power_board_data.pwr_brd_aux_amp;
+
+			mavlink_msg_sens_power_board_send_struct(_mavlink->get_channel(), &msg);
+
+			return true;
+		}
+
+		return false;
+	}
+};
+
 static const StreamListItem streams_list[] = {
 	StreamListItem(&MavlinkStreamHeartbeat::new_instance, &MavlinkStreamHeartbeat::get_name_static, &MavlinkStreamHeartbeat::get_id_static),
 	StreamListItem(&MavlinkStreamStatustext::new_instance, &MavlinkStreamStatustext::get_name_static, &MavlinkStreamStatustext::get_id_static),
@@ -4210,7 +4293,8 @@ static const StreamListItem streams_list[] = {
 	StreamListItem(&MavlinkStreamGroundTruth::new_instance, &MavlinkStreamGroundTruth::get_name_static, &MavlinkStreamGroundTruth::get_id_static),
 	StreamListItem(&MavlinkStreamSensBatmonData<0>::new_instance, &MavlinkStreamSensBatmonData<0>::get_name_static, &MavlinkStreamSensBatmonData<0>::get_id_static),
 	StreamListItem(&MavlinkStreamSensBatmonData<1>::new_instance, &MavlinkStreamSensBatmonData<1>::get_name_static, &MavlinkStreamSensBatmonData<1>::get_id_static),
-	StreamListItem(&MavlinkStreamSensBatmonData<2>::new_instance, &MavlinkStreamSensBatmonData<2>::get_name_static, &MavlinkStreamSensBatmonData<2>::get_id_static)
+	StreamListItem(&MavlinkStreamSensBatmonData<2>::new_instance, &MavlinkStreamSensBatmonData<2>::get_name_static, &MavlinkStreamSensBatmonData<2>::get_id_static),
+	StreamListItem(&MavlinkStreamPowerboardData::new_instance, &MavlinkStreamPowerboardData::get_name_static, &MavlinkStreamPowerboardData::get_id_static)
 };
 
 const char *get_stream_name(const uint16_t msg_id)
