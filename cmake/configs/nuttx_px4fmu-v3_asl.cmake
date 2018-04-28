@@ -29,4 +29,5 @@ list(REMOVE_ITEM config_module_list
 list(APPEND config_module_list
 	drivers/bat_mon
 	drivers/bat_mon/bq78350
+	drivers/pwr_brd
 )
