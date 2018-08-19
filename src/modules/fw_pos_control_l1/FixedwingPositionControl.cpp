@@ -53,6 +53,7 @@ FixedwingPositionControl::FixedwingPositionControl() :
 	_parameter_handles.airspeed_min = param_find("FW_AIRSPD_MIN");
 	_parameter_handles.airspeed_trim = param_find("FW_AIRSPD_TRIM");
 	_parameter_handles.airspeed_max = param_find("FW_AIRSPD_MAX");
+	_parameter_handles.airspeed_osp = param_find("FW_AIRSP_OSP");
 	_parameter_handles.airspeed_disabled = param_find("FW_ARSP_MODE");
 
 	_parameter_handles.pitch_limit_min = param_find("FW_P_LIM_MIN");
@@ -60,6 +61,7 @@ FixedwingPositionControl::FixedwingPositionControl() :
 	_parameter_handles.roll_limit = param_find("FW_R_LIM");
 	_parameter_handles.throttle_min = param_find("FW_THR_MIN");
 	_parameter_handles.throttle_max = param_find("FW_THR_MAX");
+	_parameter_handles.throttle_max = param_find("FW_THR_OSP");
 	_parameter_handles.throttle_idle = param_find("FW_THR_IDLE");
 	_parameter_handles.throttle_slew_max = param_find("FW_THR_SLEW_MAX");
 	_parameter_handles.throttle_cruise = param_find("FW_THR_CRUISE");
@@ -122,6 +124,7 @@ FixedwingPositionControl::parameters_update()
 	param_get(_parameter_handles.airspeed_min, &(_parameters.airspeed_min));
 	param_get(_parameter_handles.airspeed_trim, &(_parameters.airspeed_trim));
 	param_get(_parameter_handles.airspeed_max, &(_parameters.airspeed_max));
+	param_get(_parameter_handles.airspeed_osp, &(_parameters.airspeed_osp));
 	param_get(_parameter_handles.airspeed_disabled, &(_parameters.airspeed_disabled));
 
 	param_get(_parameter_handles.pitch_limit_min, &(_parameters.pitch_limit_min));
@@ -200,6 +203,7 @@ FixedwingPositionControl::parameters_update()
 
 	_tecs.set_indicated_airspeed_min(_parameters.airspeed_min);
 	_tecs.set_indicated_airspeed_max(_parameters.airspeed_max);
+	_tecs.set_indicated_airspeed_osp(_parameters.airspeed_osp);
 
 	if (param_get(_parameter_handles.time_const, &v) == PX4_OK) {
 		_tecs.set_time_const(v);
@@ -257,6 +261,9 @@ FixedwingPositionControl::parameters_update()
 		_tecs.set_speedrate_p(v);
 	}
 
+	if (param_get(_parameter_handles.throttle_osp, &v) == PX4_OK) {
+		_tecs.set_throttle_setpoint_osp(v);
+	}
 
 	// Landing slope
 
@@ -292,7 +299,8 @@ FixedwingPositionControl::parameters_update()
 	    (_parameters.airspeed_max < 5.0f) ||
 	    (_parameters.airspeed_min > 100.0f) ||
 	    (_parameters.airspeed_trim < _parameters.airspeed_min) ||
-	    (_parameters.airspeed_trim > _parameters.airspeed_max)) {
+	    (_parameters.airspeed_trim > _parameters.airspeed_max) ||
+	    (_parameters.airspeed_max > _parameters.airspeed_osp)) {
 
 		mavlink_log_critical(&_mavlink_log_pub, "Airspeed parameters invalid");
 
@@ -535,12 +543,12 @@ FixedwingPositionControl::calculate_target_airspeed(float airspeed_demand, const
 	if (_wind_estimate_valid && _parameters.l1_airsp_incr_en == 1) {
 		Vector2f airspeed_2d = ground_speed - _wind_speed_vector;
 		airsp_incr = _l1_control.airspeed_incr(airspeed_2d.length(), airspeed_demand * _eas2tas,
-						       _parameters.airspeed_max * _eas2tas,
+						       _parameters.airspeed_osp * _eas2tas,
 						       _wind_speed_vector.length(), _parameters.l1_min_ground_speed);
 	}
 
 	// sanity check: limit to range
-	return constrain(airspeed_demand + airsp_incr / _eas2tas, adjusted_min_airspeed, _parameters.airspeed_max);
+	return constrain(airspeed_demand + airsp_incr / _eas2tas, adjusted_min_airspeed, _parameters.airspeed_osp);
 }
 
 void

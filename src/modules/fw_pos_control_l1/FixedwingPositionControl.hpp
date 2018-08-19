@@ -281,6 +281,7 @@ private:
 		float airspeed_min;
 		float airspeed_trim;
 		float airspeed_max;
+		float airspeed_osp;
 		int32_t airspeed_disabled;
 
 		float pitch_limit_min;
@@ -340,6 +341,7 @@ private:
 		param_t airspeed_min;
 		param_t airspeed_trim;
 		param_t airspeed_max;
+		param_t airspeed_osp;
 		param_t airspeed_trans;
 		param_t airspeed_disabled;
 
@@ -348,6 +350,7 @@ private:
 
 		param_t throttle_min;
 		param_t throttle_max;
+		param_t throttle_osp;
 		param_t throttle_idle;
 		param_t throttle_cruise;
 		param_t throttle_slew_max;

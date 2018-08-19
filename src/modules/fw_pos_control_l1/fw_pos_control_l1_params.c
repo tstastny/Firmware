@@ -213,6 +213,22 @@ PARAM_DEFINE_FLOAT(FW_R_LIM, 50.0f);
 PARAM_DEFINE_FLOAT(FW_THR_MAX, 1.0f);
 
 /**
+ * Throttle over-speed
+ *
+ * This is the maximum throttle % that can be used by the controller above the
+ * nominal FW_THR_MAX, e.g. in high-wind scenarios. In level flight, this
+ * throttle setting corresponds to the FW_AIRSP_OSP.
+ *
+ * @unit norm
+ * @min 0.0
+ * @max 1.0
+ * @decimal 2
+ * @increment 0.01
+ * @group FW L1 Control
+ */
+PARAM_DEFINE_FLOAT(FW_THR_OSP, 1.0f);
+
+/**
  * Throttle limit min
  *
  * This is the minimum throttle % that can be used by the controller.
@@ -437,6 +453,22 @@ PARAM_DEFINE_FLOAT(FW_AIRSPD_MIN, 10.0f);
  * @group FW TECS
  */
 PARAM_DEFINE_FLOAT(FW_AIRSPD_MAX, 20.0f);
+
+/**
+ * Maximum Over-speed
+ *
+ * Corresponding to a throttle setting of FW_THR_OSP in level flight, this is
+ * the maximum allowed airspeed reference TECS will control above the nominal
+ * maximum airspeed when needed to maintain forward ground speed in high winds.
+ *
+ * @unit m/s
+ * @min 0.0
+ * @max 40
+ * @decimal 1
+ * @increment 0.5
+ * @group FW TECS
+ */
+PARAM_DEFINE_FLOAT(FW_AIRSP_OSP, 20.0f);
 
 /**
  * Cruise Airspeed
